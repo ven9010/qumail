@@ -14,6 +14,15 @@ import logging
 app = Flask(__name__)
 app.secret_key = "qumail-secret-123"  # Fixed secret key
 
+# Session cookie settings for local testing (remove or adjust in production)
+app.config['SESSION_COOKIE_SECURE'] = False  # Allow non-HTTPS for localhost
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
+
+# Optional: For consistent URL generation
+app.config['SERVER_NAME'] = '127.0.0.1:5000'
+
 # Allow insecure transport for local HTTP testing (remove in production)
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
@@ -40,15 +49,18 @@ def auth_gmail():
         flow = Flow.from_client_secrets_file(
             "credentials.json",
             scopes=SCOPES,
-            redirect_uri="http://localhost:5000/auth/gmail/callback"
+            redirect_uri="http://127.0.0.1:5000/auth/gmail/callback"
         )
         authorization_url, state = flow.authorization_url(
             access_type="offline",
             include_granted_scopes="true"
         )
+        session.permanent = True  # Make session permanent
         session["state"] = state
+        session.modified = True  # Force session update
         logger.debug(f"Generated authorization_url: {authorization_url}")
         logger.debug(f"Stored state in session: {state}")
+        logger.debug(f"Session keys after storing state: {session.keys()}")
         return redirect(authorization_url)
     except Exception as e:
         error_msg = f"Error in auth_gmail: {str(e)}\n{traceback.format_exc()}"
@@ -61,6 +73,7 @@ def auth_gmail_callback():
         logger.debug("Starting auth_gmail_callback route")
         logger.debug(f"Full request URL: {request.url}")
         logger.debug(f"Query params: {request.args}")
+        logger.debug(f"Session keys before retrieving state: {session.keys()}")
         state = session.get("state")
         logger.debug(f"Retrieved session state: {state}")
         if not state:
@@ -72,13 +85,14 @@ def auth_gmail_callback():
             "credentials.json",
             scopes=SCOPES,
             state=state,
-            redirect_uri="http://localhost:5000/auth/gmail/callback"
+            redirect_uri="http://127.0.0.1:5000/auth/gmail/callback"
         )
         logger.debug("Fetching token...")
         flow.fetch_token(authorization_response=request.url)
         logger.debug("Token fetched successfully")
         credentials = flow.credentials
         logger.debug(f"Credentials obtained: {credentials.token[:10]}... (token snippet)")
+        session.permanent = True  # Make session permanent
         session["credentials"] = {
             "token": credentials.token,
             "refresh_token": credentials.refresh_token,
@@ -87,7 +101,9 @@ def auth_gmail_callback():
             "client_secret": credentials.client_secret,
             "scopes": credentials.scopes
         }
+        session.modified = True  # Force session update
         logger.debug("Credentials saved to session")
+        logger.debug(f"Session keys after saving credentials: {session.keys()}")
         return redirect(url_for("compose"))
     except Exception as e:
         error_msg = f"Error in auth_gmail_callback: {str(e)}\n{traceback.format_exc()}"
@@ -108,21 +124,24 @@ def send_email():
         body = request.form["body"]
         attachment = request.files.get("attachment")
         security_level = int(request.form["security"])
+
         key_id = None
         if security_level in [2, 3]:
             quantum_key, key_id = fetch_quantum_key()
             store_key(key_id, quantum_key)
-        if security_level == 2:
-            body = quantum_aes_encrypt(body, quantum_key).hex()
-        else:
-            key_bytes = bytes.fromhex(quantum_key)[:len(body)]
-            body = otp_encrypt(body, key_bytes).hex()
+            if security_level == 2:
+                body = quantum_aes_encrypt(body, quantum_key).hex()
+            else:
+                key_bytes = bytes.fromhex(quantum_key)[:len(body)]
+                body = otp_encrypt(body, key_bytes).hex()
+
         logger.debug(f"Prepared email: {body} (Security Level {security_level}, Key ID: {key_id})")
         message = MIMEText(body)
         message["to"] = recipient
         message["subject"] = subject
         message["X-Quantum-Key-ID"] = key_id if key_id else "None"
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
         credentials = session.get("credentials")
         if not credentials:
             logger.debug("No credentials in session, redirecting to auth_gmail")
@@ -130,7 +149,7 @@ def send_email():
         creds = Credentials(**credentials)
         service = build("gmail", "v1", credentials=creds)
         service.users().messages().send(userId="me", body={"raw": raw}).execute()
-        logger.debug("Email sent successfully")
+
         return f"Email sent: {body} (Security Level {security_level}, Key ID: {key_id})"
     except Exception as e:
         error_msg = f"Error in send_email: {str(e)}\n{traceback.format_exc()}"
