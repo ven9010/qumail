@@ -1,0 +1,1 @@
+console.log("QuMail JavaScript loaded");
