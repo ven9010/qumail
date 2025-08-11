@@ -6,7 +6,9 @@ def quantum_aes_encrypt(data, quantum_key):
     """Encrypt data using AES with a quantum key as the seed."""
     aes_key = hashlib.sha256(quantum_key.encode()).digest()
     cipher = AES.new(aes_key, AES.MODE_CBC)
-    padded_data = pad(data.encode(), AES.block_size)
+    if not isinstance(data, bytes):
+        data = data.encode()
+    padded_data = pad(data, AES.block_size)
     ciphertext = cipher.encrypt(padded_data)
     return cipher.iv + ciphertext
 
@@ -21,13 +23,17 @@ def quantum_aes_decrypt(ciphertext, quantum_key):
 
 def otp_encrypt(data, quantum_key):
     """Encrypt data using One-Time Pad with a quantum key."""
+    if not isinstance(data, bytes):
+        data = data.encode()
     if len(quantum_key) < len(data):
         raise ValueError("Quantum key must be at least as long as the data")
-    ciphertext = bytes(a ^ b for a, b in zip(data.encode(), quantum_key))
+    ciphertext = bytes(a ^ b for a, b in zip(data, quantum_key))
     return ciphertext
 
 def otp_decrypt(ciphertext, quantum_key):
     """Decrypt OTP-encrypted data (same as encrypt due to XOR)."""
+    if not isinstance(ciphertext, bytes):
+        ciphertext = ciphertext.encode()
     if len(quantum_key) < len(ciphertext):
         raise ValueError("Quantum key must be at least as long as the ciphertext")
     plaintext = bytes(a ^ b for a, b in zip(ciphertext, quantum_key))
