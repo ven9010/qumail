@@ -10,14 +10,14 @@
 <body>
     <div class="container mt-5">
         <h1 class="text-center">Compose Email</h1>
-        <form action="/send_email" method="POST" enctype="multipart/form-data" class="mt-4">
+        <form action="/send_email" method="post" enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="recipient" class="form-label">Recipient</label>
                 <input type="email" class="form-control" id="recipient" name="recipient" required>
             </div>
             <div class="mb-3">
                 <label for="subject" class="form-label">Subject</label>
-                <input type="text" class="form-control" id="subject" name="subject" required>
+                <input type="text" class="form-control" id="subject" name="subject">
             </div>
             <div class="mb-3">
                 <label for="body" class="form-label">Body</label>
@@ -26,19 +26,37 @@
             <div class="mb-3">
                 <label for="attachment" class="form-label">Attachment</label>
                 <input type="file" class="form-control" id="attachment" name="attachment">
+                <button type="button" id="remove-attachment" class="btn btn-danger mt-2" style="display: none;">Remove Attachment</button>
             </div>
             <div class="mb-3">
                 <label for="security" class="form-label">Security Level</label>
-                <select class="form-control" id="security" name="security">
-                    <option value="1">Level 1: No Quantum</option>
-                    <option value="2">Level 2: Quantum AES</option>
-                    <option value="3">Level 3: Quantum OTP</option>
+                <select class="form-select" id="security" name="security">
+                    <option value="1">Level 1 (No Encryption)</option>
+                    <option value="2">Level 2 (Quantum AES)</option>
+                    <option value="3">Level 3 (Quantum OTP)</option>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary">Send</button>
+            <a href="/inbox" class="btn btn-secondary ms-2">Inbox</a>
         </form>
-        <a href="/inbox" class="btn btn-secondary mt-3">View Inbox</a>
     </div>
+    <script>
+        const attachmentInput = document.getElementById('attachment');
+        const removeButton = document.getElementById('remove-attachment');
+
+        attachmentInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                removeButton.style.display = 'block';
+            } else {
+                removeButton.style.display = 'none';
+            }
+        });
+
+        removeButton.addEventListener('click', function() {
+            attachmentInput.value = '';
+            removeButton.style.display = 'none';
+        });
+    </script>
     <script src="/static/js/script.js"></script>
 </body>
 </html>
