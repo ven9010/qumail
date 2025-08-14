@@ -3,7 +3,7 @@ pycryptodome==3.20.0
 requests==2.32.3
 google-auth-oauthlib==1.2.1  # Latest as of 2025
 google-auth-httplib2==0.2.0
-urllib3==2.2.3
+urllib3==1.26.20
 google-api-python-client==2.149.0
 authlib==1.3.1  # Add this explicitly to pin latest
 google-api-python-client==2.149.0
