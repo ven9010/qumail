@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuMail - Personal Email Management</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+        p {
+            font-size: 14px;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .provider-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .button {
+            display: block;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        /* Provider-specific colors */
+        .google { background-color: #4285F4; }
+        .google:hover { background-color: #357ae8; }
+        .yahoo { background-color: #410093; }
+        .yahoo:hover { background-color: #33007a; }
+        .microsoft { background-color: #0078D4; }
+        .microsoft:hover { background-color: #0067b8; }
+        .apple { background-color: #000000; }
+        .apple:hover { background-color: #333333; }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        label {
+            text-align: left;
+            font-size: 14px;
+        }
+        input[type="email"],
+        input[type="password"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button[type="submit"] {
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button[type="submit"]:hover {
+            background-color: #218838;
+        }
+        .flashes {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+        .flashes li {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to QuMail</h1>
+        <!-- Flash Messages Placeholder (static, empty for demo) -->
+        <ul class="flashes">
+            <!-- No messages in static version -->
+        </ul>
+        <p>
+            QuMail is a personal email management app. Log in with your email provider. Supported: Gmail, Yahoo, Outlook/Hotmail, iCloud.
+        </p>
+        <!-- Provider Buttons (placeholders, as auth is dynamic) -->
+        <div class="provider-buttons">
+            <a href="#" class="button google">Login with Google</a>
+            <a href="#" class="button yahoo">Login with Yahoo</a>
+            <a href="#" class="button microsoft">Login with Microsoft</a>
+            <a href="#" class="button apple">Login with Apple</a>
+        </div>
+        <!-- Email Login Form Placeholder (non-functional in static) -->
+        <h2>Or Enter Your Email</h2>
+        <form>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password">
+            <button type="submit">Login</button>
+        </form>
+        <p><a href="/privacy-policy.html">Privacy Policy</a></p>
+        <p>View the source code on <a href="https://github.com/ven9010/qumail">GitHub</a>.</p>
+    </div>
+    <script src="static/js/script.js"></script>
+</body>
+</html>
