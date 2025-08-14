@@ -1,4 +1,3 @@
-# app.py (fixed end-to-end; Yahoo OAuth URL + session flow robust; removed Apple support; updated for MS and template changes)
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from encryption import quantum_aes_encrypt, otp_encrypt, quantum_aes_decrypt, otp_decrypt
 from key_manager import fetch_quantum_key
@@ -22,10 +21,10 @@ import requests
 from requests_oauthlib import OAuth2Session
 from werkzeug.middleware.proxy_fix import ProxyFix
 from typing import Optional, Any
+import time
 
-# ---- Flask app ----
 app = Flask(__name__)
-app.secret_key = "qumail-secret-123"  # replace for production
+app.secret_key = "qumail-secret-123"
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -33,29 +32,32 @@ app.config['SESSION_COOKIE_DOMAIN'] = None
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '0'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+msal_logger = logging.getLogger('msal')
+msal_logger.setLevel(logging.DEBUG)
 
-# ---- Scopes & constants ----
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.readonly"
 ]
-MICROSOFT_SCOPES = ["https://graph.microsoft.com/Mail.Send", "https://graph.microsoft.com/Mail.Read"]
-# Yahoo scopes MUST be passed to OAuth2Session or the request is invalid.
-# (Keep them as a list; requests-oauthlib formats them correctly.)
+MICROSOFT_SCOPES = [
+    "https://graph.microsoft.com/Mail.Send",
+    "https://graph.microsoft.com/Mail.Read",
+    "https://graph.microsoft.com/User.Read"
+]
 YAHOO_SCOPES = ["mail-r", "mail-w"]
 MICROSOFT_CLIENT_ID = "aca9b84b-cd69-46f5-93d7-4b027c4d3883"
+MICROSOFT_CLIENT_SECRET = os.getenv('MICROSOFT_CLIENT_SECRET')
 MICROSOFT_AUTHORITY = "https://login.microsoftonline.com/common"
-# Your Yahoo app creds
 YAHOO_CLIENT_ID = "dj0yJmk9Q2FEYTNSY1gwVUVWJmQ9WVdrOVUyTnlRbnB1Y1hnbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTk1"
 YAHOO_CLIENT_SECRET = "152d2cc287f6bf8939081684d2ee1cfc445ad0f7"
 YAHOO_AUTH_URL = "https://api.login.yahoo.com/oauth2/request_auth"
 YAHOO_TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token"
 
-# ---- Helpers ----
 def get_ngrok_url() -> str:
-    """Return https ngrok public URL if available, else localhost fallback."""
     try:
         resp = requests.get('http://localhost:4040/api/tunnels', timeout=2)
         tunnels = resp.json().get('tunnels', [])
@@ -73,7 +75,6 @@ app.config['SESSION_COOKIE_SECURE'] = NGROK_URL.startswith('https')
 logger.debug(f"Using NGROK_URL={NGROK_URL}; SESSION_COOKIE_SECURE={app.config['SESSION_COOKIE_SECURE']}")
 
 def _normalize_key(key_obj: Any) -> Optional[str]:
-    """Normalize key to string from tuple/bytes/str."""
     if key_obj is None:
         return None
     if isinstance(key_obj, tuple):
@@ -94,7 +95,6 @@ def _normalize_key(key_obj: Any) -> Optional[str]:
     return str(key_obj)
 
 def decrypt_flex(ciphertext: Any, quantum_key: Any, is_text: bool = True):
-    """Try multiple encodings before calling quantum_aes_decrypt."""
     qk = _normalize_key(quantum_key)
     if qk is None:
         raise ValueError("quantum_key is None or invalid")
@@ -152,12 +152,12 @@ def login():
         session['provider'] = 'google'
     elif 'yahoo' in domain:
         session['provider'] = 'yahoo'
-    elif 'outlook' in domain or 'hotmail' in domain:
+    elif 'outlook' in domain or 'hotmail' in domain or 'microsoft' in domain:
         session['provider'] = 'microsoft'
     else:
         flash("Unsupported email provider")
         return redirect(url_for("index"))
-    session['user_email'] = email_addr  # used by SMTP/IMAP flows
+    session['user_email'] = email_addr
     session.modified = True
     logger.debug(f"Session after login: {session}")
     return redirect(url_for("auth_provider", provider=session['provider']))
@@ -220,6 +220,7 @@ def auth_google_callback():
             "scopes": credentials.scopes
         }
         session['provider'] = 'google'
+        session['logged_in'] = True
         session.pop("google_state", None)
         session.modified = True
         logger.debug("Google callback stored credentials in session")
@@ -228,16 +229,15 @@ def auth_google_callback():
         logger.exception("Error in Google callback")
         return f"<h1>Error in Google Callback</h1><pre>{traceback.format_exc()}</pre>", 500
 
-# ---- Yahoo (fixed) ----
+# ---- Yahoo ----
 @app.route("/auth/yahoo")
 def auth_yahoo():
     try:
         redirect_uri = get_ngrok_url() + "/auth/yahoo/callback"
         logger.debug(f"Yahoo redirect_uri = {redirect_uri}")
-        # Use only valid scopes you’ve enabled in Yahoo Developer Console
         oauth = OAuth2Session(
             client_id=YAHOO_CLIENT_ID,
-            scope=["mail-r", "mail-w"],  # add "sdpp-w" only if granted in console
+            scope=["mail-r", "mail-w"],
             redirect_uri=redirect_uri
         )
         authorization_url, state = oauth.authorization_url(YAHOO_AUTH_URL)
@@ -272,7 +272,7 @@ def auth_yahoo_callback():
         )
         session["credentials"] = token
         session['provider'] = 'yahoo'
-        # Fetch email from Yahoo’s OpenID Connect userinfo endpoint
+        session['logged_in'] = True
         try:
             resp = oauth.get("https://api.login.yahoo.com/openid/v1/userinfo")
             if resp.status_code == 200:
@@ -295,39 +295,148 @@ def auth_microsoft():
     try:
         redirect_uri = get_ngrok_url() + "/auth/microsoft/callback"
         logger.debug(f"MS redirect_uri = {redirect_uri}")
-        msal_app = msal.PublicClientApplication(MICROSOFT_CLIENT_ID, authority=MICROSOFT_AUTHORITY)
-        flow = msal_app.initiate_auth_code_flow(MICROSOFT_SCOPES, redirect_uri=redirect_uri)
-        session.permanent = True
-        session["ms_flow"] = flow
+        msal_app = msal.ConfidentialClientApplication(
+            client_id=MICROSOFT_CLIENT_ID,
+            client_credential=MICROSOFT_CLIENT_SECRET,
+            authority=MICROSOFT_AUTHORITY
+        )
+        flow = msal_app.initiate_auth_code_flow(
+            MICROSOFT_SCOPES, 
+            redirect_uri=redirect_uri,
+            state=session.get('_csrf_token')
+        )
+        
+        # Store only the minimal flow data needed
+        session['ms_flow'] = {
+            'auth_uri': flow['auth_uri'],
+            'code_verifier': flow['code_verifier'],
+            'redirect_uri': flow['redirect_uri'],
+            'state': flow['state'],
+            'nonce': flow['nonce']
+        }
         session.modified = True
+        logger.debug(f"Microsoft auth initiated, redirecting to: {flow['auth_uri']}")
         return redirect(flow["auth_uri"])
-    except Exception:
+    except Exception as e:
         logger.exception("Error starting Microsoft auth")
         return f"<h1>Error in Microsoft Auth</h1><pre>{traceback.format_exc()}</pre>", 500
 
 @app.route("/auth/microsoft/callback")
 def auth_microsoft_callback():
     try:
+        if 'error' in request.args:
+            error = request.args['error']
+            description = request.args.get('error_description', 'No description')
+            logger.error(f"Microsoft auth error: {error}, {description}")
+            flash(f"Authentication failed: {error} - {description}")
+            return redirect(url_for("index"))
+
+        if 'code' not in request.args:
+            logger.error("No code parameter in Microsoft callback")
+            flash("Authentication failed: no authorization code received")
+            return redirect(url_for("index"))
+
         flow = session.get("ms_flow")
         if not flow:
-            return "No flow in session for Microsoft callback", 400
-        msal_app = msal.PublicClientApplication(MICROSOFT_CLIENT_ID, authority=MICROSOFT_AUTHORITY)
-        result = msal_app.acquire_token_by_auth_code_flow(flow, request.args)
+            logger.error("No flow in session for Microsoft callback")
+            flash("Session expired. Please try again.")
+            return redirect(url_for("index"))
+
+        # Reconstruct the minimal flow object needed for token acquisition
+        reconstructed_flow = {
+            'auth_uri': flow['auth_uri'],
+            'code_verifier': flow['code_verifier'],
+            'redirect_uri': flow['redirect_uri'],
+            'state': flow['state'],
+            'nonce': flow['nonce'],
+            'scope': MICROSOFT_SCOPES
+        }
+
+        msal_app = msal.ConfidentialClientApplication(
+            client_id=MICROSOFT_CLIENT_ID,
+            client_credential=MICROSOFT_CLIENT_SECRET,
+            authority=MICROSOFT_AUTHORITY
+        )
+        
+        logger.debug(f"Attempting to acquire token with code: {request.args['code']}")
+        result = msal_app.acquire_token_by_auth_code_flow(
+            reconstructed_flow,
+            request.args,
+            scopes=None
+        )
+        
         if "error" in result:
-            return f"Microsoft auth error: {result['error']}", 400
-        session["credentials"] = result
+            logger.error(f"Microsoft token acquisition error: {result.get('error')}")
+            logger.error(f"Error description: {result.get('error_description')}")
+            flash(f"Authentication failed: {result.get('error')}")
+            return redirect(url_for("index"))
+
+        if "access_token" not in result:
+            logger.error("No access_token in Microsoft auth result")
+            flash("Authentication failed: no access token received")
+            return redirect(url_for("index"))
+
+        # Store only the essential credentials
+        session["credentials"] = {
+            'access_token': result['access_token'],
+            'refresh_token': result.get('refresh_token'),
+            'expires_at': int(time.time()) + result['expires_in'],
+            'token_type': result['token_type']
+        }
+        
         session['provider'] = 'microsoft'
+        session['logged_in'] = True
+        
+        # Get user email but don't store the entire user info
+        try:
+            headers = {'Authorization': f"Bearer {result['access_token']}"}
+            user_info = requests.get(
+                "https://graph.microsoft.com/v1.0/me",
+                headers=headers
+            ).json()
+            session['user_email'] = user_info.get('mail') or user_info.get('userPrincipalName')
+        except Exception as e:
+            logger.warning(f"Could not fetch Microsoft user email: {e}")
+            flash("Could not retrieve user email information")
+            return redirect(url_for("index"))
+
         session.pop("ms_flow", None)
         session.modified = True
-        logger.debug("Microsoft callback stored credentials")
+        
+        logger.debug("Microsoft authentication successful, redirecting to compose")
         return redirect(url_for("compose"))
-    except Exception:
+    except Exception as e:
         logger.exception("Error in Microsoft callback")
-        return f"<h1>Error in Microsoft Callback</h1><pre>{traceback.format_exc()}</pre>", 500
+        flash("An error occurred during authentication")
+        return redirect(url_for("index"))
+
+def get_microsoft_token():
+    credentials = session.get('credentials')
+    if not credentials:
+        return None
+        
+    # Check if token is expired or about to expire
+    expires_at = credentials.get('expires_at', 0)
+    if time.time() > (expires_at - 300):  # 5 minute buffer
+        msal_app = msal.ConfidentialClientApplication(
+            client_id=MICROSOFT_CLIENT_ID,
+            client_credential=MICROSOFT_CLIENT_SECRET,
+            authority=MICROSOFT_AUTHORITY
+        )
+        result = msal_app.acquire_token_by_refresh_token(
+            credentials.get('refresh_token'),
+            scopes=MICROSOFT_SCOPES
+        )
+        if 'access_token' in result:
+            session['credentials'] = result
+            session.modified = True
+            return result['access_token']
+        return None
+    return credentials.get('access_token')
 
 @app.route("/compose")
 def compose():
-    if 'provider' not in session:
+    if not session.get('logged_in') or not session.get('provider'):
         return redirect(url_for("index"))
     return render_template("compose.html")
 
@@ -419,8 +528,8 @@ def send_yahoo(recipient, subject, body, attachment, key_id, security_level, cre
             logger.error(f"XOAUTH2 SMTP auth failed: {e}. Trying password login fallback.")
             if isinstance(credentials, dict) and credentials.get('password'):
                 server.login(user_email, credentials.get('password'))
-            elif isinstance(credentials, dict) and credentials.get('password'):
-                server.login(user_email, credentials.get('password'))
+    elif isinstance(credentials, dict) and credentials.get('password'):
+        server.login(user_email, credentials.get('password'))
     msg = MIMEMultipart()
     msg['From'] = user_email
     msg['To'] = recipient
@@ -443,7 +552,10 @@ def send_yahoo(recipient, subject, body, attachment, key_id, security_level, cre
             pass
 
 def send_microsoft(recipient, subject, body, attachment, key_id, security_level, credentials):
-    token = credentials.get('access_token') if isinstance(credentials, dict) else getattr(credentials, 'access_token', None)
+    token = get_microsoft_token()
+    if not token:
+        raise RuntimeError("Could not get valid Microsoft access token")
+    
     headers = {'Authorization': f"Bearer {token}", 'Content-Type': 'application/json'}
     data = {
         "message": {
@@ -470,6 +582,9 @@ def send_microsoft(recipient, subject, body, attachment, key_id, security_level,
 # ---- Inbox ----
 @app.route("/inbox")
 def inbox():
+    if not session.get('logged_in'):
+        return redirect(url_for("index"))
+    
     provider = session.get('provider')
     credentials = session.get('credentials')
     if not credentials:
@@ -675,7 +790,124 @@ def fetch_yahoo_inbox(credentials):
         return emails
 
 def fetch_microsoft_inbox(credentials):
-    return []
+    token = get_microsoft_token()
+    if not token:
+        logger.error("No valid Microsoft token available")
+        return []
+    
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        # Get the last 10 messages
+        response = requests.get(
+            "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages",
+            headers=headers,
+            params={
+                '$top': 10,
+                '$select': 'subject,from,body,hasAttachments',
+                '$orderby': 'receivedDateTime DESC'
+            }
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"Microsoft Graph API error: {response.status_code} - {response.text}")
+            return []
+            
+        messages = response.json().get('value', [])
+        emails = []
+        
+        for msg in messages:
+            try:
+                msg_id = msg.get('id')
+                if not msg_id:
+                    continue
+                    
+                # Get full message details including headers
+                msg_response = requests.get(
+                    f"https://graph.microsoft.com/v1.0/me/messages/{msg_id}",
+                    headers=headers,
+                    params={'$select': 'subject,from,body,hasAttachments,internetMessageHeaders'}
+                )
+                
+                if msg_response.status_code != 200:
+                    logger.warning(f"Failed to get message {msg_id}: {msg_response.status_code}")
+                    continue
+                    
+                msg_data = msg_response.json()
+                subject = msg_data.get('subject', 'No Subject')
+                from_info = msg_data.get('from', {}).get('emailAddress', {}).get('address', 'Unknown')
+                body_content = msg_data.get('body', {}).get('content', '')
+                key_id = None
+                security_level = 1
+                
+                # Check for custom headers
+                headers_list = msg_data.get('internetMessageHeaders', [])
+                for header in headers_list:
+                    if header.get('name') == 'X-Quantum-Key-ID':
+                        key_id = header.get('value')
+                    elif header.get('name') == 'X-Security-Level':
+                        try:
+                            security_level = int(header.get('value', '1'))
+                        except ValueError:
+                            pass
+                
+                # Handle decryption if needed
+                if key_id and key_id != 'None':
+                    raw_key_obj = get_key(key_id)
+                    quantum_key = _normalize_key(raw_key_obj)
+                    if quantum_key:
+                        try:
+                            body_content = decrypt_flex(body_content, quantum_key, is_text=True)
+                        except Exception as e:
+                            logger.error(f"Decryption failed for message {msg_id}: {e}")
+                            body_content = f"[decryption failed] {body_content}"
+                
+                # Handle attachments if needed
+                attachments = []
+                if msg_data.get('hasAttachments'):
+                    attach_response = requests.get(
+                        f"https://graph.microsoft.com/v1.0/me/messages/{msg_id}/attachments",
+                        headers=headers
+                    )
+                    if attach_response.status_code == 200:
+                        for attach in attach_response.json().get('value', []):
+                            attach_name = attach.get('name', 'attachment')
+                            attach_content = base64.b64decode(attach.get('contentBytes', ''))
+                            if key_id and key_id != 'None' and quantum_key:
+                                try:
+                                    attach_content = decrypt_flex(attach_content, quantum_key, is_text=False)
+                                except Exception as e:
+                                    logger.error(f"Attachment decrypt failed for {attach_name}: {e}")
+                            attachments.append({
+                                'name': attach_name,
+                                'content': attach_content
+                            })
+                
+                emails.append({
+                    'subject': subject,
+                    'from': from_info,
+                    'body': body_content,
+                    'attachments': attachments
+                })
+                
+            except Exception as e:
+                logger.error(f"Error processing Microsoft message: {e}")
+                continue
+                
+        return emails
+        
+    except Exception as e:
+        logger.exception("Error fetching Microsoft inbox")
+        return []
+
+# ---- Logout ----
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
 
 # ---- Catch-all ----
 @app.route("/<path:path>")
