@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox - QuMail</title>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .header { background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .user-menu a { color: white; text-decoration: none; padding: 8px; border-radius: 5px; margin-left: 10px; }
+        .user-menu a.compose { background-color: #28a745; }
+        .user-menu a.logout { background-color: #007bff; }
+        .main-content { padding: 20px; }
+        .email-list { list-style-type: none; padding: 0; }
+        .email-item { background-color: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .email-item h3 { margin: 0 0 5px 0; font-size: 16px; }
+        .email-item p { margin: 0; color: #555; }
+        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
+        .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="header">
+        <h1>QuMail</h1>
+        <div class="user-menu">
+            {% if user %}
+                <span>Welcome, <strong>{{ user.info.name or user.info.displayName }}</strong></span>
+                <a href="/compose" class="compose">Compose</a>
+                <a href="/logout" class="logout">Logout</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="main-content">
+        <h2>Your Inbox</h2>
+        <ul class="email-list">
+            {% for message in messages %}
+                <li class="email-item">
+                    <h3>{{ message.subject }}</h3>
+                    <p><strong>From:</strong> {{ message.sender }}</p>
+                    <p>{{ message.snippet }}</p>
+
+                    {% if message.attachment %}
+                        <p style="margin-top: 10px;">
+                            <a href="{{ url_for('download_attachment', provider=user.provider, message_id=message.id) }}">
+                                📎 Download {{ message.attachment.filename }}
+                            </a>
+                        </p>
+                    {% endif %}
+                </li>
+            {% else %}
+                <li>Your inbox is empty or could not be loaded.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
