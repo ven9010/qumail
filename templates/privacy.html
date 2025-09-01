@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1" />
+    <title>Privacy & Security | QuMail</title>
+    <meta name="description" content="Understand QuMail's commitment to your privacy and security." />
+    <meta property="og:title" content="Privacy & Security | QuMail" />
+    <meta property="og:description" content="Understand QuMail's commitment to your privacy and security." />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="32x32" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Embedded Font and Global Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:wght@400;500;700&display=swap');
+
+        body {
+            --color-jet: 0 0% 4%;
+            --color-charcoal: 0 0% 10%;
+            --color-umbra: 221 12% 14%;
+            --color-ink: 213 11% 16%;
+            --color-ash: 216 5% 19;
+            --color-steel: 216 4% 22%;
+            --color-fog: 216 4% 51%;
+            --color-pewter: 213 12% 70%;
+            --color-dove: 222 19% 86%;
+            --color-nimbus: 228 21.74% 95.49%;
+            --color-ivory: 40 18% 97%;
+            --color-white: 0 0% 100%;
+            --color-midnight: 214 58.3% 9.4%;
+            --color-evenfall: 214 16.1% 28%;
+            --color-breeze: 214 48.9% 73.9%;
+            --color-dawn: 37 100% 76%;
+            --color-sunset: 22 100% 51.6%;
+            --color-dusk: 263 70% 50.4%;
+            --color-twilight: 255 92% 76%;
+            --primary: var(--color-jet);
+            --primary-hover: var(--color-umbra);
+            --secondary: var(--color-fog);
+            --secondary-hover: var(--color-pewter);
+            --accent: var(--color-sunset);
+            --accent-hover: var(--color-dawn);
+            --background: var(--color-white);
+            --background-hover: var(--color-dove);
+            --foreground: var(--color-jet);
+            --foreground-hover: var(--color-umbra);
+            --card: var(--color-ivory);
+            --border: var(--color-dove);
+            --input: var(--color-white);
+            --radius: 0.5rem;
+            font-family: 'Geist Mono', monospace;
+        }
+
+        .dark {
+            --primary: var(--color-white);
+            --primary-hover: var(--color-ivory);
+            --secondary: var(--color-fog);
+            --secondary-hover: var(--color-pewter);
+            --accent: var(--color-sunset);
+            --accent-hover: var(--color-dawn);
+            --background: var(--color-jet);
+            --background-hover: var(--color-umbra);
+            --foreground: var(--color-dove);
+            --foreground-hover: var(--color-white);
+            --card: var(--color-charcoal);
+            --border: var(--color-umbra);
+            --input: var(--color-fog);
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            overscroll-behavior-y: none;
+        }
+
+    </style>
+</head>
+<body class="bg-background text-primary dark overflow-hidden antialiased">
+    
+    <!-- Starfield Canvas Background -->
+    <canvas id="stars-canvas" class="absolute inset-0 opacity-0"></canvas>
+    
+    <!-- Main Content -->
+    <main class="relative z-10 flex h-screen w-full flex-col items-center justify-start pt-16 pb-24 px-4 overflow-y-auto">
+        <div class="absolute inset-0 bg-black/50"></div>
+        <div class="relative z-10 w-full max-w-4xl mx-auto">
+             <div class="w-full rounded-2xl bg-card/50 backdrop-blur-lg border border-border/50 p-8 md:p-12 shadow-2xl text-left">
+                <h1 class="text-4xl font-bold mb-4">Privacy & Security</h1>
+                <p class="text-secondary mb-8">Your trust is our most important asset. Here's how we protect your data.</p>
+                
+                <div class="space-y-8 text-secondary">
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-2">Our Philosophy</h2>
+                        <p>QuMail is designed from the ground up with a single mission: to provide a secure layer of end-to-end encryption over your existing email accounts. We believe you shouldn't have to choose between convenience and privacy. We never handle your passwords, and we can't read your encrypted messages.</p>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-2">Secure Authentication via OAuth 2.0</h2>
+                        <p>When you sign in with Google, Microsoft, or Yahoo, you are using the industry-standard OAuth 2.0 protocol. This means you authenticate directly with your email provider. QuMail receives a secure token to access your account but <span class="text-primary font-bold">never</span> sees or stores your password. This ensures your primary account credentials remain completely private.</p>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-2">End-to-End Encryption with AES-GCM</h2>
+                        <p>The core of QuMail is its on-demand encryption. When you choose to send an encrypted email, the message body and any attachments are encrypted on your device before they are sent. We use AES-GCM, a modern, authenticated encryption cipher, to ensure both confidentiality and integrity. Only the recipient with the correct decryption key can view the original content.</p>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-2">Ephemeral Key Management</h2>
+                        <p>To manage decryption, QuMail uses a local SQLite database on your device to store the necessary ephemeral encryption keys. These keys are temporary and are only used for decrypting the messages intended for you. This decentralized approach means we do not have a central repository of keys, making your encrypted communication significantly more secure.</p>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-2">What We Don't Collect</h2>
+                        <p>We are committed to data minimization. We do not track your activity, sell your data, or analyze your email content for advertising. Our business is protecting your privacy, not profiting from your data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="fixed bottom-0 w-full p-6 text-center z-20">
+    <a href="/" 
+       class="inline-block px-5 py-2 text-sm text-secondary border border-border rounded-full 
+              hover:text-primary hover:border-white/30 hover:bg-white/5 
+              backdrop-blur-sm transition-all duration-200">
+        Back to Login
+    </a>
+</footer>
+
+    <script>
+        // Starfield animation script
+        const canvas = document.getElementById('stars-canvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            let stars = [];
+            const numStars = 800; 
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            function createStars() {
+                stars = [];
+                for (let i = 0; i < numStars; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        radius: Math.random() * 1.5,
+                        alpha: Math.random()
+                    });
+                }
+            }
+
+            function drawStars() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                stars.forEach(star => {
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                    ctx.fill();
+                });
+            }
+
+            function updateStars() {
+                stars.forEach(star => {
+                    star.y -= 0.2;
+                    if (star.y < 0) {
+                        star.y = canvas.height;
+                    }
+                });
+            }
+
+            function animateStars() {
+                updateStars();
+                drawStars();
+                requestAnimationFrame(animateStars);
+            }
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                createStars();
+            });
+
+            resizeCanvas();
+            createStars();
+            animateStars();
+            
+            canvas.style.transition = 'opacity 2s';
+            setTimeout(() => {
+                canvas.style.opacity = '0.5';
+            }, 100);
+        }
+    </script>
+</body>
+</html>

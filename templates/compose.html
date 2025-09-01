@@ -1,38 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Compose - QuMail</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Compose | QuMail</title>
+    <meta name="description" content="Compose new email in QuMail, the most intelligent email client in the world." />
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        .compose-container { max-width: 800px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        textarea { height: 200px; resize: vertical; }
-        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-primary { background-color: #007bff; color: white; }
+        @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:wght@400;500;700&display=swap');
+        body {
+            --primary: hsl(0, 0%, 100%); --secondary: hsl(216, 4%, 51%); --accent: hsl(22, 100%, 51.6%); --accent-hover: hsl(37, 100%, 76%); --background: hsl(0, 0%, 4%); --background-hover: hsl(221, 12%, 14%); --foreground: hsl(222, 19%, 86%); --card: hsl(0, 0%, 10%); --border: hsl(221, 12%, 14%);
+            font-family: 'Geist Mono', monospace;
+            background-color: var(--background); color: var(--foreground);
+        }
+        #background-video { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: 0; object-fit: cover; }
+        .content-wrapper { position: relative; z-index: 1; }
+        .compose-bg { background-color: rgba(10, 10, 10, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .text-primary { color: var(--primary); } .text-secondary { color: var(--secondary); } .bg-accent { background-color: var(--accent); } .hover\:bg-accent-hover:hover { background-color: var(--accent-hover); } .border-border { border-color: rgba(40, 40, 40, 0.6); }
+        .attachment-area { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .remove-btn { display: none; }
+        input::placeholder, textarea::placeholder { color: var(--secondary); opacity: 1; }
+        input, textarea, select { color: var(--foreground); background-color: var(--card); }
     </style>
 </head>
-<body>
-    <div class="compose-container">
-        <h2>Compose New Email</h2>
-        <form action="/send_email" method="post" enctype="multipart/form-data">
-            <input type="email" name="to" placeholder="To" required>
-            <input type="text" name="subject" placeholder="Subject">
-            
-            <label for="security_level">Security Level:</label>
-            <select name="security_level" id="security_level">
-                <option value="1">Level 1 - No Quantum Security</option>
-                <option value="2">Level 2 - Quantum-Aided AES</option>
-                <option value="3">Level 3 - Quantum Secure (One-Time Pad)</option>
-            </select>
-            
-            <textarea name="body" placeholder="Your message here..."></textarea>
-            
-            <label for="attachment">Attachment:</label>
-            <input type="file" name="attachment" id="attachment">
+<body class="dark antialiased">
+    <video autoplay loop muted playsinline id="background-video" poster="{{ url_for('static', filename='images/poster.jpg') }}">
+        <source src="{{ url_for('static', filename='videos/blackhole-720p.mp4') }}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
-            <button type="submit" class="btn btn-primary">Send</button>
-        </form>
+    <div class="content-wrapper flex h-screen w-full items-center justify-center">
+        <div class="compose-bg p-8 rounded-lg shadow-xl max-w-lg w-full border border-border">
+            
+            <h2 class="text-2xl font-bold mb-6 text-primary">Compose New Email</h2>
+            <form action="/send_email" method="post" enctype="multipart/form-data">
+                <input type="email" name="to" placeholder="To" required class="w-full px-4 py-3 mb-4 rounded-md bg-card text-foreground border border-border focus:outline-none focus:border-accent">
+                <input type="text" name="subject" placeholder="Subject" required class="w-full px-4 py-3 mb-4 rounded-md bg-card text-foreground border border-border focus:outline-none focus:border-accent">
+                
+                <label for="security_level" class="block text-secondary mb-2">Security Level:</label>
+                <select name="security_level" id="security_level" class="w-full px-4 py-3 mb-4 rounded-md bg-card text-foreground border border-border focus:outline-none focus:border-accent">
+                    <option value="1">Level 1 - No Quantum Security</option>
+                    <option value="2">Level 2 - Quantum-Aided AES</option>
+                    <option value="3">Level 3 - Quantum Secure (Hybrid)</option>
+                </select>
+                
+                <textarea name="body" placeholder="Your message here..." required class="w-full px-4 py-3 mb-4 rounded-md bg-card text-foreground border border-border focus:outline-none focus:border-accent" style="font-family: 'Inter', sans-serif;"></textarea>
+                
+                <label for="attachment" class="block text-secondary mb-2">Attachment:</label>
+                <div class="attachment-area">
+                    <input type="file" name="attachment" id="attachment" class="w-full px-4 py-3 rounded-md bg-card text-foreground border border-border focus:outline-none focus:border-accent">
+                    <span id="file-name-display" class="text-secondary"></span>
+                    <button type="button" id="remove-attachment-btn" class="px-4 py-2 rounded-md bg-red-500 text-white hover:bg-red-600 remove-btn">Remove</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-6">
+                    <a href="{{ url_for('inbox') }}" class="w-full text-center py-3 rounded-full bg-card hover:bg-background-hover border border-border text-secondary hover:text-primary font-bold transition-all">
+                        Cancel
+                    </a>
+                    <button type="submit" class="w-full py-3 rounded-full bg-accent hover:bg-accent-hover text-black font-bold transition-all shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40">
+                        Send
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="notification-modal" class="fixed inset-0 flex items-center justify-center z-50" style="background-color: rgba(0,0,0,0.8); display: none;">
+    <div class="bg-card p-8 rounded-lg shadow-xl max-w-sm w-full border border-border">
+        {% for category, message in messages %}
+        <p class="text-primary text-center mb-4 font-semibold">{{ message }}</p>
+        {% endfor %}
+        <button onclick="document.getElementById('notification-modal').style.display='none'" class="w-full py-2 bg-accent text-black rounded-full font-bold">Close</button>
+    </div>
+</div>
+<script>
+    document.getElementById('notification-modal').style.display = 'flex';
+</script>
+{% endif %}
+{% endwith %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Attachment handling script ---
+    const fileInput = document.getElementById('attachment');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const removeBtn = document.getElementById('remove-attachment-btn');
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            fileNameDisplay.textContent = fileInput.files[0].name;
+            removeBtn.style.display = 'inline-block';
+        } else {
+            fileNameDisplay.textContent = '';
+            removeBtn.style.display = 'none';
+        }
+    });
+
+    removeBtn.addEventListener('click', () => {
+        fileInput.value = ''; 
+        fileNameDisplay.textContent = '';
+        removeBtn.style.display = 'none';
+    });
+
+    // --- Video playback script ---
+    const video = document.getElementById('background-video');
+    if (video) {
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("Video autoplay was prevented by the browser:", error);
+                video.controls = false;
+            });
+        }
+    }
+});
+</script>
 </body>
 </html>

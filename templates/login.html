@@ -1,25 +1,346 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF--8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - QuMail</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1" />
+    <title>Login | QuMail</title>
+    <meta name="description" content="Login to QuMail, the most intelligent email client in the world." />
+    <meta property="og:title" content="Login | QuMail" />
+    <meta property="og:description" content="Login to QuMail, the most intelligent email client in the world." />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="32x32" />
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        .login-container { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 10px; }
-        .login-btn { display: block; width: 80%; padding: 12px; margin: 10px auto; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; color: white; }
-        .google { background-color: #DB4437; }
-        .microsoft { background-color: #0078D4; }
-        .yahoo { background-color: #410093; }
+        /* Embedded Font and Global Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:wght@400;500;700&display=swap');
+        
+        :root {
+            --yahoo-purple: #6001D2; /* 2019-era purple reference */ 
+        }
+
+        body {
+            --color-jet: 0 0% 4%;
+            --color-charcoal: 0 0% 10%;
+            --color-umbra: 221 12% 14%;
+            --color-ink: 213 11% 16%;
+            --color-ash: 216 5% 19;
+            --color-steel: 216 4% 22%;
+            --color-fog: 216 4% 51%;
+            --color-pewter: 213 12% 70%;
+            --color-dove: 222 19% 86%;
+            --color-nimbus: 228 21.74% 95.49%;
+            --color-ivory: 40 18% 97%;
+            --color-white: 0 0% 100%;
+            --color-midnight: 214 58.3% 9.4%;
+            --color-evenfall: 214 16.1% 28%;
+            --color-breeze: 214 48.9% 73.9%;
+            --color-dawn: 37 100% 76%;
+            --color-sunset: 22 100% 51.6%;
+            --color-dusk: 263 70% 50.4%;
+            --color-twilight: 255 92% 76%;
+            --primary: var(--color-jet);
+            --primary-hover: var(--color-umbra);
+            --secondary: var(--color-fog);
+            --secondary-hover: var(--color-pewter);
+            --accent: var(--color-sunset);
+            --accent-hover: var(--color-dawn);
+            --background: var(--color-white);
+            --background-hover: var(--color-dove);
+            --foreground: var(--color-jet);
+            --foreground-hover: var(--color-umbra);
+            --card: var(--color-ivory);
+            --border: var(--color-dove);
+            --input: var(--color-white);
+            --radius: 0.5rem;
+            font-family: 'Geist Mono', monospace;
+        }
+
+        .dark {
+            --primary: var(--color-white);
+            --primary-hover: var(--color-ivory);
+            --secondary: var(--color-fog);
+            --secondary-hover: var(--color-pewter);
+            --accent: var(--color-sunset);
+            --accent-hover: var(--color-dawn);
+            --background: var(--color-jet);
+            --background-hover: var(--color-umbra);
+            --foreground: var(--color-dove);
+            --foreground-hover: var(--color-white);
+            --card: var(--color-charcoal);
+            --border: var(--color-umbra);
+            --input: var(--color-fog);
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            overscroll-behavior-y: none;
+        }
+
+        /* Login buttons */
+        .login-btn {
+            background-color: hsl(var(--border) / 0.1);
+            border: 1px solid hsl(var(--border) / 0.2);
+            color: currentColor;
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.12s ease-in-out;
+            will-change: background-color, border-color, color, transform;
+        }
+
+        .login-btn:hover {
+            background-color: hsl(var(--border) / 0.25);
+            border-color: hsl(var(--border) / 0.35);
+            color: hsl(var(--foreground-hover));
+            transform: translateY(-1px);
+        }
+
+        /* Unify provider icon sizing to avoid jitter */
+        .login-btn img,
+        .login-btn svg { 
+            width: 20px; 
+            height: 20px; 
+        }
+
+        /* Card and backdrop polish */
+        #globe-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1200px;
+            height: 1200px;
+            max-width: 120vw;
+            max-height: 120vh;
+            opacity: 0.6;
+            z-index: 0;
+        }
+
+        /* Accessibility: respect reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            #stars-canvas, #globe-canvas { 
+                animation: none !important; 
+            }
+        }
     </style>
 </head>
-<body>
-    <div class="login-container">
-        <h1>Welcome to QuMail</h1>
-        <p>A new era of secure communication.</p>
-        <a href="/login/google" style="text-decoration: none;"><button class="login-btn google">Login with Google</button></a>
-        <a href="/login/microsoft" style="text-decoration: none;"><button class="login-btn microsoft">Login with Microsoft</button></a>
-        <a href="/login/yahoo" style="text-decoration: none;"><button class="login-btn yahoo">Login with Yahoo</button></a>
-    </div>
+<body class="bg-background text-primary dark overflow-hidden antialiased">
+    
+    <canvas id="stars-canvas" class="absolute inset-0 opacity-0"></canvas>
+
+    <canvas id="globe-canvas"></canvas>
+    
+    <main class="relative z-10 flex h-screen w-full flex-col items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40"></div>
+        
+        <div class="relative z-10 grid w-full max-w-7xl grid-cols-1 gap-16 text-center md:grid-cols-2 md:text-left">
+            <div class="flex flex-col items-center justify-center md:items-start">
+                <a aria-label="QuMail Homepage" href="#" class="text-6xl font-bold mb-4 inline-block">QuMail</a>
+                <p class="text-secondary text-lg max-w-sm">The future of communication is intelligent, secure, and organized. Welcome to the new era.</p>
+            </div>
+            
+            <div class="w-full max-w-sm mx-auto rounded-2xl bg-card/50 backdrop-blur-lg border border-border/50 p-8 shadow-2xl">
+                <h2 class="text-2xl font-bold mb-2">Sign In</h2>
+                <p class="text-secondary mb-8">Choose your provider to continue</p>
+                
+                <div class="space-y-4">
+                    <!-- Google -->
+                    <a href="/login/google" class="login-btn group flex w-full items-center justify-center gap-3 rounded-full px-4 py-3 uppercase tracking-wider text-sm transition-all duration-300">
+                        <img class="size-5" src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_24dp.png" alt="" aria-hidden="true" />
+                        <span>Login with Google</span>
+                    </a>
+                    
+                    <!-- Microsoft -->
+                    <a href="/login/microsoft" class="login-btn group flex w-full items-center justify-center gap-3 rounded-full px-4 py-3 uppercase tracking-wider text-sm transition-all duration-300">
+                        <svg class="size-5" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img">
+                            <title>Microsoft</title>
+                            <path d="M11.25.5H.5v10.75h10.75V.5z" fill="#f25022"/>
+                            <path d="M22.5.5h-10.75v10.75H22.5V.5z" fill="#7fba00"/>
+                            <path d="M11.25 11.75H.5V22.5h10.75V11.75z" fill="#00a4ef"/>
+                            <path d="M22.5 11.75h-10.75V22.5H22.5V11.75z" fill="#ffb900"/>
+                        </svg>
+                        <span>Login with Microsoft</span>
+                    </a>
+                    
+                    <!-- Yahoo (2019 mark, purple) -->
+                    <a href="/login/yahoo" class="login-btn group flex w-full items-center justify-center gap-3 rounded-full px-4 py-3 uppercase tracking-wider text-sm transition-all duration-300">
+                        <svg class="size-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" role="img">
+                            <title>Yahoo</title>
+                            <path fill="var(--yahoo-purple)" d="M16.88 5.5h-2.37l-2.55 5.03-2.58-5.03H6.99l3.9 7.3v5.7h2.25v-5.7l3.74-7.3zM18.5 17.5c0-.8-.64-1.45-1.44-1.45s-1.45.65-1.45 1.45.65 1.45 1.45 1.45 1.44-.65 1.44-1.45z"/>
+                        </svg>
+                        <span>Login with Yahoo</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="absolute bottom-0 w-full p-6 text-center">
+            <a href="/privacy" class="text-sm text-secondary hover:text-primary transition-colors">Privacy & Security</a>
+        </footer>
+    </main>
+
+    <script>
+        // Starfield animation script (respects reduced motion)
+        const canvas = document.getElementById('stars-canvas');
+        if (canvas) {
+            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const ctx = canvas.getContext('2d');
+            let stars = [];
+            const numStars = 800;
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            function createStars() {
+                stars = [];
+                for (let i = 0; i < numStars; i++) {
+                    stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        radius: Math.random() * 1.5,
+                        alpha: Math.random()
+                    });
+                }
+            }
+            
+            function drawStars() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                stars.forEach(star => {
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                    ctx.fill();
+                });
+            }
+            
+            function updateStars() {
+                stars.forEach(star => {
+                    star.y -= 0.2;
+                    if (star.y < 0) star.y = canvas.height;
+                });
+            }
+            
+            function animateStars() {
+                if (!prefersReduced) {
+                    updateStars();
+                    drawStars();
+                    requestAnimationFrame(animateStars);
+                } else {
+                    drawStars();
+                }
+            }
+            
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                createStars();
+                drawStars();
+            });
+            
+            resizeCanvas();
+            createStars();
+            animateStars();
+
+            canvas.style.transition = prefersReduced ? 'opacity 0.2s' : 'opacity 2s';
+            setTimeout(() => {
+                canvas.style.opacity = '0.5';
+            }, 100);
+        }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 3D Globe animation script (respects reduced motion)
+        const globeCanvas = document.getElementById('globe-canvas');
+        if (globeCanvas) {
+            const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, globeCanvas.clientWidth / globeCanvas.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ canvas: globeCanvas, alpha: true });
+
+            function resizeRenderer() {
+                const container = globeCanvas.parentElement;
+                const size = Math.min(container.clientWidth, container.clientHeight) * 1.8;
+                renderer.setSize(size, size);
+                camera.aspect = 1;
+                camera.updateProjectionMatrix();
+            }
+            
+            window.addEventListener('resize', resizeRenderer);
+
+            // --- FUTURISTIC GLOBE ENHANCEMENTS ---
+            
+            // 1. Globe Wireframe
+            const geometry = new THREE.SphereGeometry(15, 32, 32);
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.2 
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            
+            // 2. Inner Data Points
+            const pointsGeometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const radius = 14.9;
+            for (let i = 0; i < 3000; i++) {
+                const u = Math.random();
+                const v = Math.random();
+                const theta = 2 * Math.PI * u;
+                const phi = Math.acos(2 * v - 1);
+                const r = Math.cbrt(Math.random()) * radius;
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                vertices.push(x, y, z);
+            }
+            pointsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            const pointsMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.05, 
+                transparent: true, 
+                opacity: 0.8 
+            });
+            const points = new THREE.Points(pointsGeometry, pointsMaterial);
+            scene.add(points);
+            
+            // 3. Outer Rings
+            const rings = new THREE.Group();
+            for (let i = 0; i < 3; i++) {
+                const ringGeometry = new THREE.RingGeometry(18 + i * 1.5, 18.1 + i * 1.5, 64);
+                const ringMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x00ffff, 
+                    side: THREE.DoubleSide, 
+                    transparent: true, 
+                    opacity: 0.35 - i * 0.08 
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = Math.random() * Math.PI;
+                ring.rotation.y = Math.random() * Math.PI;
+                rings.add(ring);
+            }
+            scene.add(rings);
+
+            // --- END FUTURISTIC ENHANCEMENTS ---
+            
+            camera.position.z = 40;
+
+            function animateGlobe() {
+                if (prefersReduced) {
+                    renderer.render(scene, camera);
+                    return;
+                }
+                requestAnimationFrame(animateGlobe);
+                sphere.rotation.y += 0.0005;
+                points.rotation.y += 0.0007;
+                rings.rotation.y -= 0.001;
+                rings.rotation.x += 0.0003;
+                renderer.render(scene, camera);
+            }
+
+            resizeRenderer();
+            animateGlobe();
+        }
+    </script>
 </body>
 </html>

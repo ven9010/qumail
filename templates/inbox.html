@@ -1,67 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inbox - QuMail</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inbox | QuMail</title>
+    <meta name="description" content="Inbox for QuMail, the most intelligent email client in the world." />
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
-        .header { background-color: #333; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { margin: 0; font-size: 24px; }
-        .user-menu a { color: white; text-decoration: none; padding: 8px; border-radius: 5px; margin-left: 10px; }
-        .user-menu a.compose { background-color: #28a745; }
-        .user-menu a.logout { background-color: #007bff; }
-        .main-content { padding: 20px; }
-        .email-list { list-style-type: none; padding: 0; }
-        .email-item { background-color: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
-        .email-item h3 { margin: 0 0 5px 0; font-size: 16px; }
-        .email-item p { margin: 0; color: #555; }
-        .flash { padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px; }
-        .flash.success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
-        .flash.error { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Inter:wght@400;500;700&display=swap');
+        body {
+            --primary: hsl(0, 0%, 100%); --secondary: hsl(216, 4%, 51%); --accent: hsl(22, 100%, 51.6%); --accent-hover: hsl(37, 100%, 76%); --background: hsl(0, 0%, 4%); --background-hover: hsl(221, 12%, 14%); --foreground: hsl(222, 19%, 86%); --card: hsl(0, 0%, 10%); --border: hsl(221, 12%, 14%);
+            font-family: 'Geist Mono', monospace;
+            background-color: var(--background); color: var(--foreground);
+        }
+        #background-video { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; z-index: 0; object-fit: cover; }
+        .content-wrapper { position: relative; z-index: 1; }
+        .sidebar-bg { background-color: rgba(10, 10, 10, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .main-bg { background-color: rgba(4, 4, 4, 0.5); }
+        .text-primary { color: var(--primary); } .text-secondary { color: var(--secondary); } .bg-accent { background-color: var(--accent); } .hover\:bg-accent-hover:hover { background-color: var(--accent-hover); } .border-border { border-color: rgba(40, 40, 40, 0.6); }
+        .email-item { transition: background-color 0.2s ease-in-out; }
+        .email-item:hover { background-color: var(--background-hover); }
+        .bg-background-hover { background-color: var(--background-hover) !important; }
+        .email-full-body { display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--foreground); font-family: 'Inter', sans-serif; }
+        .email-full-body a { color: var(--accent); }
     </style>
 </head>
-<body>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
+<body class="dark antialiased">
+    <video autoplay loop muted playsinline id="background-video">
+        <source src="{{ url_for('static', filename='videos/blackhole-720p.mp4') }}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div class="content-wrapper flex h-screen w-full">
+        <aside class="w-64 flex-shrink-0 border-r border-border sidebar-bg p-4 flex flex-col">
+            <h1 class="text-3xl font-bold mb-8 text-primary">QuMail</h1>
+            <a href="{{ url_for('compose') }}" class="w-full flex items-center justify-center gap-3 text-center py-4 mb-8 rounded-full bg-accent hover:bg-accent-hover text-black font-bold text-base transition-all shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40">
+                <svg class="size-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                <span>New Message</span>
+            </a>
+            
+            <nav class="flex flex-col space-y-2">
+                <a href="{{ url_for('inbox', folder='inbox') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
+                    {% if current_folder == 'Inbox' %} text-primary font-semibold bg-background-hover
+                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 1 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    <span>Inbox</span>
+                    {% if messages and current_folder == 'Inbox' %}<span class="ml-auto text-xs bg-accent text-black rounded-full px-2 py-0.5">{{ messages|length }}</span>{% endif %}
+                </a>
+                <a href="{{ url_for('inbox', folder='sent') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
+                    {% if current_folder == 'Sent' %} text-primary font-semibold bg-background-hover
+                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
+                    <span>Sent</span>
+                </a>
+                <a href="{{ url_for('inbox', folder='spam') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
+                    {% if current_folder == 'Spam' %} text-primary font-semibold bg-background-hover
+                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                    <span>Spam</span>
+                </a>
+            </nav>
+            
+            <div class="mt-auto">
+                <a href="{{ url_for('logout') }}" class="w-full text-left flex items-center gap-3 rounded-lg px-4 py-2 text-secondary hover:text-primary hover:bg-background-hover transition-colors">
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" x2="12"/></svg>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="flex-1 min-w-0 flex flex-col main-bg">
+            <header class="flex items-center justify-between p-4 border-b border-border">
+                <h2 class="text-xl font-semibold text-primary">{{ current_folder }} for {{ user.info.name }}</h2>
+                <div class="flex items-center gap-4">
+                    {% if user.info.picture %}<img src="{{ user.info.picture }}" alt="Profile" class="rounded-full w-8 h-8 cursor-pointer" title="{{ user.info.name }}">
+                    {% elif user.info.name %}<img src="https://placehold.co/32x32/ffb900/000000?text={{ user.info.name[0]|upper }}" alt="Profile" class="rounded-full cursor-pointer" title="{{ user.info.name }}">{% endif %}
+                </div>
+            </header>
+
+            <div class="flex items-center justify-end p-4 border-b border-border">
+                <p class="text-sm text-secondary">Showing {{ messages|length }} most recent messages</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto">
+                {% for message in messages %}
+                    <div class="email-item p-4 border-b border-border cursor-pointer flex flex-col" 
+                         data-message-id="{{ message.id }}" 
+                         data-provider="{{ user.provider }}">
+                        
+                        <div class="flex-1">
+                            <div class="flex items-baseline justify-between">
+                                <p class="font-bold w-48 truncate text-primary">{{ message.sender }}</p>
+                                <div class="flex items-center gap-4">
+                                    <span class="text-secondary text-sm">{{ message.date }}</span>
+                                    {% if message.attachment %}
+                                    <a href="{{ url_for('download_attachment', provider=user.provider, message_id=message.id) }}" title="Download {{ message.attachment.filename }}" class="z-10 relative" onclick="event.stopPropagation();">
+                                        <svg class="size-4 text-secondary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.59a2 2 0 1 1-2.83-2.83l.79-.79m.79-4.52 6.2-6.2"/></svg>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <p class="font-semibold text-primary mt-1 break-all">{{ message.subject }}</p>
+                            <p class="text-secondary text-sm mt-1 break-all">{{ message.snippet }}</p>
+                        </div>
+                        
+                        <div class="email-full-body max-h-96 overflow-y-auto break-words"></div>
+                    </div>
+                {% else %}
+                    <div class="text-center p-10"><p class="text-secondary">This folder is empty.</p></div>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="notification-modal" class="fixed inset-0 flex items-center justify-center z-50" style="background-color: rgba(0,0,0,0.8); display: none;">
+    <div class="bg-card p-8 rounded-lg shadow-xl max-w-sm w-full border border-border">
         {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
+        <p class="text-primary text-center mb-4 font-semibold">{{ message }}</p>
         {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="header">
-        <h1>QuMail</h1>
-        <div class="user-menu">
-            {% if user %}
-                <span>Welcome, <strong>{{ user.info.name or user.info.displayName }}</strong></span>
-                <a href="/compose" class="compose">Compose</a>
-                <a href="/logout" class="logout">Logout</a>
-            {% endif %}
-        </div>
+        <button onclick="document.getElementById('notification-modal').style.display='none'" class="w-full py-2 bg-accent text-black rounded-full font-bold">Close</button>
     </div>
+</div>
+<script>
+    document.getElementById('notification-modal').style.display = 'flex';
+</script>
+{% endif %}
+{% endwith %}
 
-    <div class="main-content">
-        <h2>Your Inbox</h2>
-        <ul class="email-list">
-            {% for message in messages %}
-                <li class="email-item">
-                    <h3>{{ message.subject }}</h3>
-                    <p><strong>From:</strong> {{ message.sender }}</p>
-                    <p>{{ message.snippet }}</p>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailItems = document.querySelectorAll('.email-item');
 
-                    {% if message.attachment %}
-                        <p style="margin-top: 10px;">
-                            <a href="{{ url_for('download_attachment', provider=user.provider, message_id=message.id) }}">
-                                📎 Download {{ message.attachment.filename }}
-                            </a>
-                        </p>
-                    {% endif %}
-                </li>
-            {% else %}
-                <li>Your inbox is empty or could not be loaded.</li>
-            {% endfor %}
-        </ul>
-    </div>
+    emailItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const bodyContainer = this.querySelector('.email-full-body');
+            const isVisible = bodyContainer.style.display === 'block';
+
+            // Accordion Logic: Close all other open emails first
+            emailItems.forEach(otherItem => {
+                if (otherItem !== this) {
+                    otherItem.querySelector('.email-full-body').style.display = 'none';
+                }
+            });
+
+            // Toggle the clicked email
+            if (isVisible) {
+                bodyContainer.style.display = 'none';
+                return;
+            }
+
+            // If body is already loaded, just show it
+            if (bodyContainer.innerHTML.trim() !== '') {
+                bodyContainer.style.display = 'block';
+                return;
+            }
+
+            // Fetch and display the email body
+            const messageId = this.dataset.messageId;
+            const provider = this.dataset.provider;
+            bodyContainer.innerHTML = '<p class="text-secondary">Loading...</p>';
+            bodyContainer.style.display = 'block';
+
+            fetch(`/api/message/${provider}/${messageId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        bodyContainer.innerHTML = `<p class="text-red-400">Error: ${data.error}</p>`;
+                    } else {
+                        bodyContainer.innerHTML = data.body;
+                    }
+                })
+                .catch(error => {
+                    bodyContainer.innerHTML = `<p class="text-red-400">Failed to load email. Please try again.</p>`;
+                    console.error('Error fetching email:', error);
+                });
+        });
+    });
+
+    const video = document.getElementById('background-video');
+    if (video) {
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("Video autoplay was prevented by the browser:", error);
+                video.controls = false;
+            });
+        }
+    }
+});
+</script>
 </body>
 </html>
