@@ -313,49 +313,95 @@ def send_email():
         
     return redirect(url_for('inbox'))
 
+# In app.py, replace the entire download_attachment function with this one.
+
 @app.route('/download_attachment/<provider>/<message_id>')
 def download_attachment(provider, message_id):
-    if 'user' not in session: return redirect(url_for('index'))
+    if 'user' not in session:
+        return redirect(url_for('index'))
+
     token = session['user']['token']
+    
     try:
+        body_text = None
+        # Step 1: Get the email's body content based on the provider
         if provider == 'google':
             msg_resp = oauth.google.get(f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=raw", token=token).json()
             raw_email_data = base64.urlsafe_b64decode(msg_resp['raw'])
             parsed_email = BytesParser(policy=policy.default).parsebytes(raw_email_data)
-            body_text = parsed_email.get_body(preferencelist=('plain',)).get_content()
-            try:
-                payload = json.loads(body_text)
-                is_encrypted = True
-            except: is_encrypted = False
-            if is_encrypted:
-                q_key_record = key_manager.get_key_by_id(payload['key_id'])
-                attachment_data, ciphertext = payload['attachment'], base64.b64decode(attachment_data['ciphertext'])
-                if payload['security_level'] == 2: decrypted_bytes = crypto_utils.decrypt_aes(ciphertext, base64.b64decode(attachment_data['nonce']), q_key_record.key_data)
-                elif payload['security_level'] == 3: decrypted_bytes = crypto_utils.decrypt_hybrid_otp(ciphertext, base64.b64decode(attachment_data['nonce']), base64.b64decode(attachment_data['session_key']), q_key_record.key_data)
-                return send_file(io.BytesIO(decrypted_bytes), download_name=attachment_data['filename'], as_attachment=True)
-            else:
-                for part in parsed_email.iter_attachments(): return send_file(io.BytesIO(part.get_payload(decode=True)), download_name=part.get_filename(), as_attachment=True)
+            body_part = parsed_email.get_body(preferencelist=('plain',))
+            if body_part:
+                body_text = body_part.get_content()
+        
         elif provider == 'microsoft':
-            body_text = oauth.microsoft.get(f"me/messages/{message_id}?$select=body", token=token).json().get('body', {}).get('content', '')
+            resp = oauth.microsoft.get(f"me/messages/{message_id}?$select=body", token=token).json()
+            body_text = resp.get('body', {}).get('content', '')
+
+        # Step 2: Determine if the email is encrypted by trying to parse the body as JSON
+        is_encrypted = False
+        payload = None
+        if body_text:
             try:
                 payload = json.loads(body_text)
-                is_encrypted = 'key_id' in payload
-            except: is_encrypted = False
-            if is_encrypted:
-                q_key_record = key_manager.get_key_by_id(payload['key_id'])
-                attachment_data, ciphertext = payload['attachment'], base64.b64decode(attachment_data['ciphertext'])
-                if payload['security_level'] == 2: decrypted_bytes = crypto_utils.decrypt_aes(ciphertext, base64.b64decode(attachment_data['nonce']), q_key_record.key_data)
-                elif payload['security_level'] == 3: decrypted_bytes = crypto_utils.decrypt_hybrid_otp(ciphertext, base64.b64decode(attachment_data['nonce']), base64.b64decode(attachment_data['session_key']), q_key_record.key_data)
+                if 'key_id' in payload:
+                    is_encrypted = True
+            except (json.JSONDecodeError, TypeError):
+                is_encrypted = False
+
+        # Step 3: Handle the download based on whether it's encrypted or not
+        if is_encrypted:
+            # --- THIS IS THE CORRECTED LOGIC FOR ENCRYPTED ATTACHMENTS ---
+            attachment_data = payload.get('attachment')
+            key_id = payload.get('key_id')
+
+            # Defensive checks: Ensure attachment data and key_id exist before proceeding
+            if not attachment_data or not key_id:
+                raise ValueError("Encrypted email payload is missing attachment data or key_id.")
+
+            q_key_record = key_manager.get_key_by_id(key_id)
+            if not q_key_record:
+                raise ValueError(f"Decryption key with id {key_id} not found.")
+
+            ciphertext = base64.b64decode(attachment_data['ciphertext'])
+            nonce = base64.b64decode(attachment_data['nonce'])
+            decrypted_bytes = None
+            
+            security_level = payload.get('security_level')
+            if security_level == 2:
+                decrypted_bytes = crypto_utils.decrypt_aes(ciphertext, nonce, q_key_record.key_data)
+            elif security_level == 3:
+                session_key = base64.b64decode(attachment_data['session_key'])
+                decrypted_bytes = crypto_utils.decrypt_hybrid_otp(ciphertext, nonce, session_key, q_key_record.key_data)
+            
+            if decrypted_bytes:
                 return send_file(io.BytesIO(decrypted_bytes), download_name=attachment_data['filename'], as_attachment=True)
             else:
+                raise Exception("Decryption failed or produced no data.")
+        
+        else:
+            # Logic for regular, unencrypted attachments (remains the same)
+            if provider == 'google':
+                # Re-parse from earlier to find attachment parts
+                raw_email_data = base64.urlsafe_b64decode(oauth.google.get(f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=raw", token=token).json()['raw'])
+                parsed_email = BytesParser(policy=policy.default).parsebytes(raw_email_data)
+                for part in parsed_email.iter_attachments():
+                    return send_file(io.BytesIO(part.get_payload(decode=True)), download_name=part.get_filename(), as_attachment=True)
+            
+            elif provider == 'microsoft':
                 att_resp = oauth.microsoft.get(f"me/messages/{message_id}/attachments", token=token).json()
                 if att_resp.get('value'):
                     att_id = att_resp['value'][0]['id']
                     attachment = oauth.microsoft.get(f"me/messages/{message_id}/attachments/{att_id}", token=token).json()
-                    return send_file(io.BytesIO(base64.b64decode(attachment['contentBytes'])), download_name=attachment['name'], as_attachment=True)
+                    file_bytes = base64.b64decode(attachment['contentBytes'])
+                    return send_file(io.BytesIO(file_bytes), download_name=attachment['name'], as_attachment=True)
+
     except Exception as e:
-        print(f"Error downloading attachment: {e}")
-        return "Failed to download attachment.", 500
+        print(f"!!! Critical Error in download_attachment: {e} !!!")
+        flash(f"Failed to download attachment. Error: {e}", "error")
+        # Redirect back to inbox instead of showing a blank page
+        return redirect(url_for('inbox'))
+
+    # If all else fails, show a 404
     return "Attachment not found.", 404
 
 @app.route('/logout')
