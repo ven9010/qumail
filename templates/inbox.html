@@ -32,30 +32,34 @@
     </video>
 
     <div class="content-wrapper flex h-screen w-full">
-        <aside class="w-64 flex-shrink-0 border-r border-border sidebar-bg p-4 flex flex-col">
-            <h1 class="text-3xl font-bold mb-8 text-primary">QuMail</h1>
+        <aside id="sidebar" class="w-64 flex-shrink-0 border-r border-border sidebar-bg p-4 flex flex-col
+                                   fixed inset-y-0 left-0 z-30
+                                   transform -translate-x-full md:relative md:translate-x-0
+                                   transition-transform duration-300 ease-in-out">
+            
+            <div class="flex items-center justify-between mb-8">
+                <h1 class="text-3xl font-bold text-primary">QuMail</h1>
+                <button id="close-btn" class="md:hidden p-1 text-secondary hover:text-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
             <a href="{{ url_for('compose') }}" class="w-full flex items-center justify-center gap-3 text-center py-4 mb-8 rounded-full bg-accent hover:bg-accent-hover text-black font-bold text-base transition-all shadow-lg shadow-accent/30 hover:shadow-xl hover:shadow-accent/40">
                 <svg class="size-6" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                 <span>New Message</span>
             </a>
             
             <nav class="flex flex-col space-y-2">
-                <a href="{{ url_for('inbox', folder='inbox') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
-                    {% if current_folder == 'Inbox' %} text-primary font-semibold bg-background-hover
-                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
-                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 1 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                <a href="{{ url_for('inbox', folder='inbox') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors {% if current_folder == 'Inbox' %} text-primary font-semibold bg-background-hover {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                     <span>Inbox</span>
                     {% if messages and current_folder == 'Inbox' %}<span class="ml-auto text-xs bg-accent text-black rounded-full px-2 py-0.5">{{ messages|length }}</span>{% endif %}
                 </a>
-                <a href="{{ url_for('inbox', folder='sent') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
-                    {% if current_folder == 'Sent' %} text-primary font-semibold bg-background-hover
-                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                <a href="{{ url_for('inbox', folder='sent') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors {% if current_folder == 'Sent' %} text-primary font-semibold bg-background-hover {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
                     <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>
                     <span>Sent</span>
                 </a>
-                <a href="{{ url_for('inbox', folder='spam') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors
-                    {% if current_folder == 'Spam' %} text-primary font-semibold bg-background-hover
-                    {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
+                <a href="{{ url_for('inbox', folder='spam') }}" class="flex items-center gap-3 rounded-lg px-4 py-2 transition-colors {% if current_folder == 'Spam' %} text-primary font-semibold bg-background-hover {% else %} text-secondary hover:text-primary hover:bg-background-hover {% endif %}">
                     <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                     <span>Spam</span>
                 </a>
@@ -63,7 +67,7 @@
             
             <div class="mt-auto">
                 <a href="{{ url_for('logout') }}" class="w-full text-left flex items-center gap-3 rounded-lg px-4 py-2 text-secondary hover:text-primary hover:bg-background-hover transition-colors">
-                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" x2="12"/></svg>
+                    <svg class="size-5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     <span>Logout</span>
                 </a>
             </div>
@@ -71,7 +75,12 @@
 
         <main class="flex-1 min-w-0 flex flex-col main-bg">
             <header class="flex items-center justify-between p-4 border-b border-border">
-                <h2 class="text-xl font-semibold text-primary">{{ current_folder }} for {{ user.info.name }}</h2>
+                <div class="flex items-center gap-4">
+                    <button id="menu-btn" class="md:hidden p-1 text-secondary hover:text-primary">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <h2 class="text-xl font-semibold text-primary truncate">{{ current_folder }} for {{ user.info.name }}</h2>
+                </div>
                 <div class="flex items-center gap-4">
                     {% if user.info.picture %}<img src="{{ user.info.picture }}" alt="Profile" class="rounded-full w-8 h-8 cursor-pointer" title="{{ user.info.name }}">
                     {% elif user.info.name %}<img src="https://placehold.co/32x32/ffb900/000000?text={{ user.info.name[0]|upper }}" alt="Profile" class="rounded-full cursor-pointer" title="{{ user.info.name }}">{% endif %}
@@ -84,10 +93,7 @@
 
             <div class="flex-1 overflow-y-auto">
                 {% for message in messages %}
-                    <div class="email-item p-4 border-b border-border cursor-pointer flex flex-col" 
-                         data-message-id="{{ message.id }}" 
-                         data-provider="{{ user.provider }}">
-                        
+                    <div class="email-item p-4 border-b border-border cursor-pointer flex flex-col" data-message-id="{{ message.id }}" data-provider="{{ user.provider }}">
                         <div class="flex-1">
                             <div class="flex items-baseline justify-between">
                                 <p class="font-bold w-48 truncate text-primary">{{ message.sender }}</p>
@@ -95,7 +101,7 @@
                                     <span class="text-secondary text-sm">{{ message.date }}</span>
                                     {% if message.attachment %}
                                     <a href="{{ url_for('download_attachment', provider=user.provider, message_id=message.id) }}" title="Download {{ message.attachment.filename }}" class="z-10 relative" onclick="event.stopPropagation();">
-                                        <svg class="size-4 text-secondary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.59a2 2 0 1 1-2.83-2.83l.79-.79m.79-4.52 6.2-6.2"/></svg>
+                                        <svg class="size-4 text-secondary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.59a2 2 0 0 1-2.83-2.83l.79-.79m.79-4.52 6.2-6.2"/></svg>
                                     </a>
                                     {% endif %}
                                 </div>
@@ -103,7 +109,6 @@
                             <p class="font-semibold text-primary mt-1 break-all">{{ message.subject }}</p>
                             <p class="text-secondary text-sm mt-1 break-all">{{ message.snippet }}</p>
                         </div>
-                        
                         <div class="email-full-body max-h-96 overflow-y-auto break-words"></div>
                     </div>
                 {% else %}
@@ -117,22 +122,18 @@
 {% if messages %}
 <div id="notification-modal" class="fixed inset-0 flex items-center justify-center z-50" style="background-color: rgba(0,0,0,0.8); display: none;">
     <div class="bg-card p-8 rounded-lg shadow-xl max-w-sm w-full border border-border">
-        {% for category, message in messages %}
-        <p class="text-primary text-center mb-4 font-semibold">{{ message }}</p>
-        {% endfor %}
+        {% for category, message in messages %}<p class="text-primary text-center mb-4 font-semibold">{{ message }}</p>{% endfor %}
         <button onclick="document.getElementById('notification-modal').style.display='none'" class="w-full py-2 bg-accent text-black rounded-full font-bold">Close</button>
     </div>
 </div>
-<script>
-    document.getElementById('notification-modal').style.display = 'flex';
-</script>
+<script>document.getElementById('notification-modal').style.display = 'flex';</script>
 {% endif %}
 {% endwith %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Email Expansion Logic ---
     const emailItems = document.querySelectorAll('.email-item');
-
     emailItems.forEach(item => {
         item.addEventListener('click', function() {
             const bodyContainer = this.querySelector('.email-full-body');
@@ -179,6 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- Video Playback Logic ---
     const video = document.getElementById('background-video');
     if (video) {
         const playPromise = video.play();
@@ -188,6 +190,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 video.controls = false;
             });
         }
+    }
+
+    // --- Mobile Sidebar Toggle Logic ---
+    const sidebar = document.getElementById('sidebar');
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('close-btn');
+
+    if (sidebar && menuBtn && closeBtn) {
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.remove('-translate-x-full');
+        });
+
+        closeBtn.addEventListener('click', () => {
+            sidebar.classList.add('-translate-x-full');
+        });
     }
 });
 </script>
