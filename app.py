@@ -134,7 +134,8 @@ def inbox(folder='inbox'):
     messages = []
     try:
         if provider == 'google':
-            query_map = {'inbox': "in:inbox -in:draft", 'sent': "in:sent", 'spam': "in:spam"}
+            # UPDATED: Added drafts and bin
+            query_map = {'inbox': "in:inbox -in:draft", 'sent': "in:sent", 'spam': "in:spam", 'drafts': "in:draft", 'bin': "in:trash"}
             query = query_map.get(folder, "in:inbox")
             resp = oauth.google.get(f'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&q={query}', token=token)
             resp.raise_for_status()
@@ -178,11 +179,11 @@ def inbox(folder='inbox'):
                 messages.append(message_details)
         
         elif provider == 'microsoft':
-            folder_map = {'inbox': 'inbox', 'sent': 'sentitems', 'spam': 'junkemail'}
+            # UPDATED: Added drafts and bin
+            folder_map = {'inbox': 'inbox', 'sent': 'sentitems', 'spam': 'junkemail', 'drafts': 'drafts', 'bin': 'deleteditems'}
             folder_id = folder_map.get(folder, 'inbox')
-            filter_query = ""  # Removed the filter to show all emails, including self-sent
+            filter_query = ""
             
-            # --- BUG FIX: Request BOTH bodyPreview (for snippet) AND body (for decryption) ---
             select_fields = "id,subject,from,bodyPreview,body,hasAttachments,receivedDateTime,sentDateTime"
             api_url = f'me/mailfolders/{folder_id}/messages?$top=20&$select={select_fields}{filter_query}'
             resp = oauth.microsoft.get(api_url, token=token)
@@ -200,7 +201,6 @@ def inbox(folder='inbox'):
                 message_details = {'id': msg['id'], 'subject': msg.get('subject', 'No Subject'), 'sender': msg.get('from', {}).get('emailAddress', {}).get('name', 'Unknown Sender'), 'snippet': snippet, 'attachment': None, 'date': date_str}
 
                 try:
-                    # --- BUG FIX: Attempt decryption on the FULL BODY, not the preview snippet ---
                     json_payload = json.loads(full_body_content) 
                     if 'key_id' in json_payload:
                         q_key_record = key_manager.get_key_by_id(json_payload['key_id'])
@@ -220,6 +220,42 @@ def inbox(folder='inbox'):
     except Exception as e:
         print(f"!!! Error fetching emails: {e} !!!")
     return render_template('inbox.html', user=user_data, messages=messages, current_folder=folder.capitalize())
+
+@app.route('/api/delete_emails', methods=['POST'])
+def delete_emails():
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    message_ids = data.get('ids', [])
+    provider = data.get('provider')
+    token = session['user']['token']
+    
+    if not message_ids or not provider:
+        return jsonify({'error': 'Missing message IDs or provider'}), 400
+
+    errors = []
+    for msg_id in message_ids:
+        try:
+            if provider == 'google':
+                resp = oauth.google.post(f'https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}/trash', token=token)
+                resp.raise_for_status()
+            elif provider == 'microsoft':
+                # The DELETE verb moves the message to the 'deleteditems' folder by default.
+                resp = oauth.microsoft.delete(f'me/messages/{msg_id}', token=token)
+                if resp.status_code != 204: # 204 No Content is success for DELETE
+                    resp.raise_for_status()
+        except Exception as e:
+            print(f"Error deleting message {msg_id} for {provider}: {e}")
+            errors.append({'id': msg_id, 'error': str(e)})
+            
+    if errors:
+        return jsonify({
+            'message': f'Completed with {len(errors)} errors.',
+            'errors': errors
+        }), 207 # Multi-Status for partial success
+    
+    return jsonify({'message': 'Emails moved to bin successfully.'})
 
 @app.route('/api/message/<provider>/<message_id>')
 def get_message_body_api(provider, message_id):
